@@ -1,40 +1,41 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+
+# SPDX-FileCopyrightText: © 2026 BIO-COLOR MINI
 # SPDX-License-Identifier: Apache-2.0
 
 import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import Timer
 
 
 @cocotb.test()
-async def test_project(dut):
-    dut._log.info("Start")
+async def test_bio_color_mini(dut):
 
-    # Set the clock period to 10 us (100 KHz)
-    clock = Clock(dut.clk, 10, unit="us")
-    cocotb.start_soon(clock.start())
+    dut._log.info("Iniciando prueba exhaustiva BIO-COLOR MINI")
 
-    # Reset
-    dut._log.info("Reset")
+    # Inicializar entradas no utilizadas
     dut.ena.value = 1
-    dut.ui_in.value = 0
-    dut.uio_in.value = 0
-    dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
+    dut.clk.value = 0
     dut.rst_n.value = 1
+    dut.uio_in.value = 0
 
-    dut._log.info("Test project behavior")
+    # Comprobar todas las entradas de 8 bits
+    for intensidad in range(256):
 
-    # Set the input values you want to test
-    dut.ui_in.value = 20
-    dut.uio_in.value = 30
+        dut.ui_in.value = intensidad
 
-    # Wait for one clock cycle to see the output values
-    await ClockCycles(dut.clk, 1)
+        # Permitir que se estabilice la lógica combinacional
+        await Timer(10, unit="ns")
 
-    # The following assersion is just an example of how to check the output values.
-    # Change it to match the actual expected output of your module:
-    assert dut.uo_out.value == 50
+        esperado = 1 if intensidad >= 128 else 0
+        obtenido = int(dut.uo_out.value) & 1
 
-    # Keep testing the module by changing the input values, waiting for
-    # one or more clock cycles, and asserting the expected output values.
+        assert obtenido == esperado, (
+            f"ERROR: intensidad={intensidad}, "
+            f"obtenido={obtenido}, esperado={esperado}"
+        )
+
+        # Verificar también las salidas no utilizadas
+        assert int(dut.uo_out.value) >> 1 == 0
+        assert int(dut.uio_oe.value) == 0
+        assert int(dut.uio_out.value) == 0
+
+    dut._log.info("PASS: 256 DE 256 PRUEBAS SUPERADAS")
